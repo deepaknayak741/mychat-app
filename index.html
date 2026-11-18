@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chat2026 - Live Chat</title>
-  <script src="https://jsdelivr.net"></script>
   <style>
     body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 15px; }
     .box { max-width: 450px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -20,8 +19,8 @@
 
 <div class="box" id="login-screen">
   <h2 onclick="secretAdminTap()">💬 Live Chat में जुड़ें</h2>
-  <input type="text" id="username" placeholder="अपना नाम लिखें (जैसे: Rahul)">
-  <input type="text" id="room" placeholder="रूम नंबर डालें (जैसे: 505)">
+  <input type="text" id="username" placeholder="अपना नाम लिखें">
+  <input type="text" id="room" placeholder="रूम नंबर डालें">
   <button onclick="joinChat()">चैट शुरू करें</button>
 </div>
 
@@ -33,81 +32,48 @@
 </div>
 
 <script>
-  const SUPABASE_URL = 'https://qdqcekxdoethakqjmahk.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_WiIbyY-HdqA7Hj_-Dx9utQ_8rFrjx2m';
-  
-  let db = null;
-  if (window.supabase) {
-    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  }
+  const URL = 'https://supabase.co';
+  const KEY = 'sb_publishable_WiIbyY-HdqA7Hj_-Dx9utQ_8rFrjx2m';
+  const HEADERS = { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' };
 
-  let currentUser = '';
-  let currentRoom = '';
+  let currentUser = '', currentRoom = '', lastCount = -1;
 
-  // सिर्फ आपके लिए गुप्त Admin रास्ता (टाइटल पर 5 बार टैप करें)
-  let tapCount = 0;
-  let tapTimer = null;
+  let tapCount = 0, tapTimer = null;
   function secretAdminTap() {
     tapCount++;
     clearTimeout(tapTimer);
-    if (tapCount >= 5) {
-      tapCount = 0;
-      window.location.href = 'admin.html';
-    }
+    if (tapCount >= 5) { tapCount = 0; window.location.href = 'admin.html'; }
     tapTimer = setTimeout(() => { tapCount = 0; }, 2000);
   }
 
   function joinChat() {
     currentUser = document.getElementById('username').value.trim();
     currentRoom = document.getElementById('room').value.trim();
-    if (!currentUser || !currentRoom) {
-      alert('कृपया नाम और रूम नंबर दोनों डालें!');
-      return;
-    }
+    if (!currentUser || !currentRoom) { alert('कृपया नाम और रूम नंबर डालें!'); return; }
 
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('chat-screen').style.display = 'block';
     document.getElementById('room-title').innerText = 'Room: ' + currentRoom;
 
-    if (db) {
-      loadMessages();
-      listenLive();
-    } else {
-      alert('इंटरनेट या सर्वर लोड होने में समस्या है, कृपया पेज रिफ्रेश करें।');
-    }
+    loadMessages();
+    setInterval(loadMessages, 3000);
   }
 
   async function loadMessages() {
-    const { data, error } = await db
-      .from('messages')
-      .select('*')
-      .eq('room_code', currentRoom)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      alert('डेटाबेस एरर: ' + error.message);
-      return;
-    }
-
-    const box = document.getElementById('chat-box');
-    box.innerHTML = '';
-    if (data) data.forEach(showMessage);
-  }
-
-  function showMessage(m) {
-    const box = document.getElementById('chat-box');
-    box.innerHTML += `<div class="msg"><div class="sender">${m.sender}</div><div>${m.message}</div></div>`;
-    box.scrollTop = box.scrollHeight;
-  }
-
-  function listenLive() {
-    db.channel('public:messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-        if (payload.new.room_code === currentRoom) {
-          showMessage(payload.new);
-        }
-      })
-      .subscribe();
+    try {
+      const res = await fetch(`${URL}?room_code=eq.${encodeURIComponent(currentRoom)}&order=created_at.asc`, { headers: HEADERS });
+      const data = await res.json();
+      if (!res.ok) { alert('लोड एरर: ' + (data.message || JSON.stringify(data))); return; }
+      if (Array.isArray(data) && data.length !== lastCount) {
+        lastCount = data.length;
+        const box = document.getElementById('chat-box');
+        box.innerHTML = '';
+        data.forEach(m => {
+          box.innerHTML += `<div class="msg"><div class="sender">${m.sender}</div><div>${m.message}</div></div>`;
+        });
+        box.scrollTop = box.scrollHeight;
+      }
+    } catch (e) { alert('नेटवर्क एरर: ' + e.message); }
   }
 
   async function sendMessage() {
@@ -116,10 +82,19 @@
     if (!text) return;
     input.value = '';
 
-    const { error } = await db.from('messages').insert([{ room_code: currentRoom, sender: currentUser, message: text }]);
-    if (error) {
-      alert('मैसेज भेजने में एरर: ' + error.message);
-    }
+    try {
+      const res = await fetch(URL, {
+        method: 'POST',
+        headers: HEADERS,
+        body: JSON.stringify({ room_code: currentRoom, sender: currentUser, message: text })
+      });
+      if (!res.ok) {
+        const errData = await res.json();
+        alert('मैसेज नहीं गया: ' + (errData.message || JSON.stringify(errData)));
+        return;
+      }
+      loadMessages();
+    } catch (e) { alert('भेजने में एरर: ' + e.message); }
   }
 </script>
 </body>
