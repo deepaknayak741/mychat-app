@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat2026 - Live Chat</title>
+  <script src="https://jsdelivr.net"></script>
+  <style>
+    body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 15px; }
+    .box { max-width: 450px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
+    button { background: #008069; color: white; border: none; font-weight: bold; cursor: pointer; }
+    #chat-box { height: 320px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background: #efeae2; border-radius: 6px; margin-bottom: 10px; }
+    .msg { background: white; padding: 8px 12px; margin: 6px 0; border-radius: 8px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+    .sender { font-weight: bold; font-size: 12px; color: #008069; }
+  </style>
+</head>
+<body>
+
+<div class="box" id="login-screen">
+  <h2>💬 Chat2026 Live</h2>
+  <input type="text" id="username" placeholder="अपना नाम लिखें (जैसे: Rahul)">
+  <input type="text" id="room" placeholder="रूम नंबर डालें (जैसे: 505)">
+  <button onclick="joinChat()">चैट शुरू करें</button>
+</div>
+
+<div class="box" id="chat-screen" style="display:none;">
+  <h3 id="room-title">Room: </h3>
+  <div id="chat-box"></div>
+  <input type="text" id="msg-input" placeholder="मैसेज लिखें...">
+  <button onclick="sendMessage()">भेजें (Send)</button>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://qdqcekxdoethakqjmahk.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_WiIbyY-HdqA7Hj_-Dx9utQ_8rFrjx2m';
+  
+  let db = null;
+  if (window.supabase) {
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+
+  let currentUser = '';
+  let currentRoom = '';
+
+  function joinChat() {
+    currentUser = document.getElementById('username').value.trim();
+    currentRoom = document.getElementById('room').value.trim();
+    if (!currentUser || !currentRoom) {
+      alert('कृपया नाम और रूम नंबर दोनों डालें!');
+      return;
+    }
+
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('chat-screen').style.display = 'block';
+    document.getElementById('room-title').innerText = 'Room: ' + currentRoom;
+
+    if (db) {
+      loadMessages();
+      listenLive();
+    } else {
+      alert('इंटरनेट से Supabase लाइब्रेरी नहीं जुड़ पा रही है।');
+    }
+  }
+
+  async function loadMessages() {
+    const { data, error } = await db
+      .from('messages')
+      .select('*')
+      .eq('room_code', currentRoom)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      alert('डेटाबेस एरर: ' + error.message);
+      return;
+    }
+
+    const box = document.getElementById('chat-box');
+    box.innerHTML = '';
+    if (data) data.forEach(showMessage);
+  }
+
+  function showMessage(m) {
+    const box = document.getElementById('chat-box');
+    box.innerHTML += `<div class="msg"><div class="sender">${m.sender}</div><div>${m.message}</div></div>`;
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function listenLive() {
+    db.channel('public:messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+        if (payload.new.room_code === currentRoom) {
+          showMessage(payload.new);
+        }
+      })
+      .subscribe();
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('msg-input');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+
+    const { error } = await db.from('messages').insert([{ room_code: currentRoom, sender: currentUser, message: text }]);
+    if (error) {
+      alert('मैसेज भेजने में एरर: ' + error.message);
+    }
+  }
+</script>
+</body>
+</html>

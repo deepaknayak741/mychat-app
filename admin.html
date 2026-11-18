@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat2026 - Admin Panel</title>
+    <script src="https://jsdelivr.net"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 15px; background: #f0f2f5; margin: 0; }
+        h2 { color: #1a1a1a; font-size: 20px; }
+        .refresh-btn { background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-size: 15px; margin-bottom: 15px; cursor: pointer; }
+        .code-list { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+        .code-btn { padding: 12px 18px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        .code-btn:active { background: #0056b3; }
+        .chat-box { background: white; padding: 15px; border-radius: 10px; height: 420px; overflow-y: auto; border: 1px solid #ddd; }
+        .msg { padding: 10px; margin-bottom: 10px; border-radius: 8px; background: #e9ecef; }
+        .sender { font-weight: bold; color: #007bff; font-size: 13px; margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+
+    <h2>👑 Chat2026 - Admin Panel</h2>
+    <button class="refresh-btn" onclick="loadAllCodes()">🔄 सभी कोड रिफ्रेश करें</button>
+    
+    <!-- यहाँ सारे रूम कोड अपने आप बटन बनकर दिखेंगे -->
+    <div id="codesContainer" class="code-list">कोड लोड हो रहे हैं...</div>
+
+    <h3 id="currentRoomTitle" style="font-size: 16px; color: #444;">ऊपर किसी कोड पर दबाकर चैट देखें</h3>
+    <!-- यहाँ चुने हुए कोड की चैट दिखेगी -->
+    <div id="chatBox" class="chat-box"></div>
+
+    <script>
+        const SUPABASE_URL = 'https://supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_WiIbyY-HdqA7Hj_-Dx9utQ_8rFrjx2m';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // सारे अलग-अलग रूम कोड निकालने का फंक्शन
+        async function loadAllCodes() {
+            const container = document.getElementById('codesContainer');
+            container.innerHTML = 'कोड ढूंढे जा रहे हैं...';
+
+            const { data, error } = await supabase
+                .from('messages')
+                .select('room_code');
+
+            if (error) {
+                container.innerHTML = 'एरर: ' + error.message;
+                return;
+            }
+
+            const uniqueCodes = [...new Set(data.map(item => item.room_code))].filter(Boolean);
+
+            container.innerHTML = '';
+            if (uniqueCodes.length === 0) {
+                container.innerHTML = 'अभी किसी भी कोड से कोई चैट नहीं हुई है।';
+                return;
+            }
+
+            uniqueCodes.forEach(code => {
+                const btn = document.createElement('button');
+                btn.className = 'code-btn';
+                btn.innerText = 'कोड: ' + code;
+                btn.onclick = () => loadChatForCode(code);
+                container.appendChild(btn);
+            });
+        }
+
+        // किसी कोड पर दबाने पर उसकी चैट दिखाने का फंक्शन
+        async function loadChatForCode(code) {
+            document.getElementById('currentRoomTitle').innerText = 'चैट देख रहे हैं - कोड: ' + code;
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML = 'मैसेज लोड हो रहे हैं...';
+
+            const { data, error } = await supabase
+                .from('messages')
+                .select('*')
+                .eq('room_code', code)
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                chatBox.innerHTML = 'एरर: ' + error.message;
+                return;
+            }
+
+            chatBox.innerHTML = '';
+            data.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = 'msg';
+                div.innerHTML = `<div class="sender">${msg.sender || 'User'}</div><div>${msg.message}</div>`;
+                chatBox.appendChild(div);
+            });
+        }
+
+        // पेज खुलते ही सारे कोड लोड करें
+        loadAllCodes();
+    </script>
+</body>
+</html>
