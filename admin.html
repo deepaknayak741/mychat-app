@@ -4,95 +4,93 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat2026 - Admin Panel</title>
-    <script src="https://jsdelivr.net"></script>
     <style>
         body { font-family: Arial, sans-serif; padding: 15px; background: #f0f2f5; margin: 0; }
         h2 { color: #1a1a1a; font-size: 20px; }
-        .refresh-btn { background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-size: 15px; margin-bottom: 15px; cursor: pointer; }
+        .refresh-btn { background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-size: 15px; margin-bottom: 15px; cursor: pointer; font-weight: bold; }
         .code-list { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
         .code-btn { padding: 12px 18px; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; }
-        .code-btn:active { background: #0056b3; }
         .chat-box { background: white; padding: 15px; border-radius: 10px; height: 420px; overflow-y: auto; border: 1px solid #ddd; }
         .msg { padding: 10px; margin-bottom: 10px; border-radius: 8px; background: #e9ecef; }
         .sender { font-weight: bold; color: #007bff; font-size: 13px; margin-bottom: 4px; }
+        #lock-screen { max-width: 350px; margin: 50px auto; background: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        #lock-screen input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; text-align: center; }
+        #lock-screen button { width: 100%; padding: 12px; background: #008069; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <h2>👑 Chat2026 - Admin Panel</h2>
-    <button class="refresh-btn" onclick="loadAllCodes()">🔄 सभी कोड रिफ्रेश करें</button>
-    
-    <!-- यहाँ सारे रूम कोड अपने आप बटन बनकर दिखेंगे -->
-    <div id="codesContainer" class="code-list">कोड लोड हो रहे हैं...</div>
+    <div id="lock-screen">
+        <h3>🔒 Admin लॉगिन</h3>
+        <input type="password" id="admin-pin" placeholder="अपना गुप्त PIN डालें">
+        <button onclick="unlockAdmin()">खोलें</button>
+    </div>
 
-    <h3 id="currentRoomTitle" style="font-size: 16px; color: #444;">ऊपर किसी कोड पर दबाकर चैट देखें</h3>
-    <!-- यहाँ चुने हुए कोड की चैट दिखेगी -->
-    <div id="chatBox" class="chat-box"></div>
+    <div id="admin-content" style="display:none;">
+        <h2>👑 Chat2026 - Admin Panel</h2>
+        <button class="refresh-btn" onclick="loadAllCodes()">🔄 सभी कोड रिफ्रेश करें</button>
+        <div id="codesContainer" class="code-list">कोड लोड हो रहे हैं...</div>
+        <h3 id="currentRoomTitle" style="font-size: 16px; color: #444;">ऊपर किसी कोड पर दबाकर चैट देखें</h3>
+        <div id="chatBox" class="chat-box"></div>
+    </div>
 
     <script>
-        const SUPABASE_URL = 'https://supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_WiIbyY-HdqA7Hj_-Dx9utQ_8rFrjx2m';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const SECRET_PIN = '2026';
+        const URL = 'https://supabase.co';
+        const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkcWNla3hkb2V0aGFrcWptYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ5NTA1OTIsImV4cCI6MjExMDUyNjU5Mn0.cg2qbqcfsTNPRfgElVVEz2XgmjUG7wnFVZLMHdoODwk';
+        const HEADERS = { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' };
 
-        // सारे अलग-अलग रूम कोड निकालने का फंक्शन
+        function unlockAdmin() {
+            const enteredPin = document.getElementById('admin-pin').value.trim();
+            if (enteredPin === SECRET_PIN) {
+                document.getElementById('lock-screen').style.display = 'none';
+                document.getElementById('admin-content').style.display = 'block';
+                loadAllCodes();
+            } else {
+                alert('गलत PIN! कृपया सही पासवर्ड डालें।');
+            }
+        }
+
         async function loadAllCodes() {
             const container = document.getElementById('codesContainer');
             container.innerHTML = 'कोड ढूंढे जा रहे हैं...';
+            try {
+                const res = await fetch(`${URL}?select=room_code`, { headers: HEADERS });
+                const data = await res.json();
+                if (!res.ok) { container.innerHTML = 'एरर: ' + (data.message || JSON.stringify(data)); return; }
 
-            const { data, error } = await supabase
-                .from('messages')
-                .select('room_code');
-
-            if (error) {
-                container.innerHTML = 'एरर: ' + error.message;
-                return;
-            }
-
-            const uniqueCodes = [...new Set(data.map(item => item.room_code))].filter(Boolean);
-
-            container.innerHTML = '';
-            if (uniqueCodes.length === 0) {
-                container.innerHTML = 'अभी किसी भी कोड से कोई चैट नहीं हुई है।';
-                return;
-            }
-
-            uniqueCodes.forEach(code => {
-                const btn = document.createElement('button');
-                btn.className = 'code-btn';
-                btn.innerText = 'कोड: ' + code;
-                btn.onclick = () => loadChatForCode(code);
-                container.appendChild(btn);
-            });
+                const uniqueCodes = [...new Set(data.map(item => item.room_code))].filter(Boolean);
+                container.innerHTML = '';
+                if (uniqueCodes.length === 0) {
+                    container.innerHTML = 'अभी किसी भी कोड से कोई चैट नहीं हुई है।';
+                    return;
+                }
+                uniqueCodes.forEach(code => {
+                    const btn = document.createElement('button');
+                    btn.className = 'code-btn';
+                    btn.innerText = 'कोड: ' + code;
+                    btn.onclick = () => loadChatForCode(code);
+                    container.appendChild(btn);
+                });
+            } catch (e) { container.innerHTML = 'नेटवर्क एरर: ' + e.message; }
         }
 
-        // किसी कोड पर दबाने पर उसकी चैट दिखाने का फंक्शन
         async function loadChatForCode(code) {
             document.getElementById('currentRoomTitle').innerText = 'चैट देख रहे हैं - कोड: ' + code;
             const chatBox = document.getElementById('chatBox');
             chatBox.innerHTML = 'मैसेज लोड हो रहे हैं...';
-
-            const { data, error } = await supabase
-                .from('messages')
-                .select('*')
-                .eq('room_code', code)
-                .order('created_at', { ascending: true });
-
-            if (error) {
-                chatBox.innerHTML = 'एरर: ' + error.message;
-                return;
-            }
-
-            chatBox.innerHTML = '';
-            data.forEach(msg => {
-                const div = document.createElement('div');
-                div.className = 'msg';
-                div.innerHTML = `<div class="sender">${msg.sender || 'User'}</div><div>${msg.message}</div>`;
-                chatBox.appendChild(div);
-            });
+            try {
+                const res = await fetch(`${URL}?room_code=eq.${encodeURIComponent(code)}&order=created_at.asc`, { headers: HEADERS });
+                const data = await res.json();
+                chatBox.innerHTML = '';
+                data.forEach(msg => {
+                    const div = document.createElement('div');
+                    div.className = 'msg';
+                    div.innerHTML = `<div class="sender">${msg.sender || 'User'}</div><div>${msg.message}</div>`;
+                    chatBox.appendChild(div);
+                });
+            } catch (e) { chatBox.innerHTML = 'एरर: ' + e.message; }
         }
-
-        // पेज खुलते ही सारे कोड लोड करें
-        loadAllCodes();
     </script>
 </body>
 </html>
