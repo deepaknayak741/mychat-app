@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Room2026 Chat</title>
-  <script src="https://jsdelivr.net"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
     body { background: #111b21; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; }
@@ -42,7 +41,7 @@
     <p>अपना नाम और रूम नंबर डालकर चैट शुरू करें</p>
     <input type="text" id="username-input" placeholder="आपका नाम (जैसे: Deepak)">
     <input type="text" id="room-input" placeholder="रूम नंबर (जैसे: 102)">
-    <button onclick="startChat()">चैट शुरू करें 🚀</button>
+    <button type="button" onclick="startChat()">चैट शुरू करें 🚀</button>
   </div>
 
   <div id="chat-screen">
@@ -51,21 +50,22 @@
         <h3 id="room-title">Room #102</h3>
         <small id="user-badge" style="color:#00a884;"></small>
       </div>
-      <button class="exit-btn" onclick="location.reload()">बाहर निकलें</button>
+      <button type="button" class="exit-btn" onclick="location.reload()">बाहर निकलें</button>
     </div>
     <div id="messages-box"></div>
     <div class="input-area">
-      <input type="text" id="msg-input" placeholder="मैसेज लिखें..." onkeypress="if(event.key==='Enter') sendMessage()">
-      <button onclick="sendMessage()">भेजें</button>
+      <input type="text" id="msg-input" placeholder="मैसेज लिखें...">
+      <button type="button" onclick="sendMessage()">भेजें</button>
     </div>
   </div>
 </div>
 
+<script src="https://jsdelivr.net"></script>
 <script>
   const SUPABASE_URL = 'https://supabase.co';
   const SUPABASE_KEY = 'sb_publishable_WiIbyY-HdqA7Hj_-Dx9utQ_8rFrjx2m';
-  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+  
+  let supabaseClient = null;
   let currentUser = '';
   let currentRoom = '';
 
@@ -80,16 +80,29 @@
 
     currentUser = rawName;
     currentRoom = room;
+    
+    // पहले स्क्रीन बदलें ताकि बटन कभी न अटके
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('chat-screen').style.display = 'flex';
     document.getElementById('room-title').innerText = 'Room #' + currentRoom;
     document.getElementById('user-badge').innerText = 'User: ' + currentUser;
 
-    loadMessages();
-    setInterval(loadMessages, 2500);
+    // अब डेटाबेस से जुड़ें
+    try {
+      if (window.supabase) {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        loadMessages();
+        setInterval(loadMessages, 2500);
+      } else {
+        alert('इंटरनेट या सर्वर लोड होने में समस्या है। पेज रिफ्रेश करें।');
+      }
+    } catch (err) {
+      alert('कनेक्शन एरर: ' + err.message);
+    }
   }
 
   async function loadMessages() {
+    if (!supabaseClient) return;
     const { data, error } = await supabaseClient
       .from('messages')
       .select('*')
@@ -106,37 +119,34 @@
       const div = document.createElement('div');
       const isMine = item.username === currentUser;
       div.className = 'msg ' + (isMine ? 'mine' : 'other');
-      
-      div.innerHTML = `
-        <div class="msg-user">${item.username}</div>
-        <div>${item.message}</div>
-      `;
+      div.innerHTML = `<div class="msg-user">${item.username}</div><div>${item.message}</div>`;
       box.appendChild(div);
     });
 
-    if (isAtBottom) {
-      box.scrollTop = box.scrollHeight;
-    }
+    if (isAtBottom) box.scrollTop = box.scrollHeight;
   }
 
   async function sendMessage() {
+    if (!supabaseClient) {
+      alert('सर्वर से जुड़ा नहीं है!');
+      return;
+    }
     const input = document.getElementById('msg-input');
     const text = input.value.trim();
     if (!text) return;
 
     input.value = '';
-
     const { error } = await supabaseClient
       .from('messages')
       .insert([{ room_id: currentRoom, username: currentUser, message: text }]);
 
     if (error) {
-      alert('मैसेज भेजने में दिक्कत आई: ' + error.message);
+      alert('मैसेज नहीं गया: ' + error.message);
     } else {
       loadMessages();
     }
   }
 </script>
-
 </body>
-          </html>
+    </html>
+    
