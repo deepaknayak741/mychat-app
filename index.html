@@ -1,140 +1,143 @@
 <!DOCTYPE html>
 <html lang="hi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Room2026 - Live Chat</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
-        body { background-color: #ece5dd; display: flex; flex-direction: column; height: 100vh; }
-        .header { background-color: #075e54; color: white; padding: 15px; text-align: center; }
-        .header h1 { font-size: 20px; }
-        .header p { font-size: 12px; opacity: 0.8; }
-        #join-screen { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; background: white; }
-        .card { width: 100%; max-width: 350px; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
-        .card h2 { color: #075e54; margin-bottom: 15px; }
-        .card input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
-        .card button { width: 100%; padding: 12px; background-color: #25d366; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        #chat-screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
-        .room-bar { background: #128c7e; color: white; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
-        .leave-btn { background: #ff4d4d; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 12px; }
-        #messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .msg { max-width: 75%; padding: 10px 14px; border-radius: 10px; font-size: 15px; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .msg.other { background-color: white; align-self: flex-start; }
-        .msg.me { background-color: #dcf8c6; align-self: flex-end; }
-        .sender-name { font-size: 11px; font-weight: bold; color: #075e54; margin-bottom: 3px; display: block; }
-        .input-area { display: flex; padding: 10px; background: #f0f0f0; gap: 8px; }
-        .input-area input { flex: 1; padding: 12px; border: none; border-radius: 25px; outline: none; font-size: 15px; }
-        .input-area button { background: #075e54; color: white; border: none; padding: 0 20px; border-radius: 25px; font-weight: bold; }
-        .ad-space { background: #fff3cd; color: #856404; text-align: center; padding: 8px; font-size: 12px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Room2026 Chat</title>
+  <script src="https://jsdelivr.net"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background: #111b21; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; }
+    .box { background: #202c33; width: 100%; max-width: 420px; height: 100vh; max-height: 750px; display: flex; flex-direction: column; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+    
+    #login-screen { padding: 30px 20px; display: flex; flex-direction: column; justify-content: center; height: 100%; text-align: center; }
+    #login-screen h1 { color: #00a884; margin-bottom: 10px; font-size: 28px; }
+    #login-screen p { color: #8696a0; margin-bottom: 25px; font-size: 14px; }
+    input { width: 100%; padding: 14px; margin-bottom: 15px; border-radius: 8px; border: none; background: #2a3942; color: #fff; font-size: 16px; outline: none; }
+    button { width: 100%; padding: 14px; border-radius: 8px; border: none; background: #00a884; color: #111b21; font-size: 16px; font-weight: bold; cursor: pointer; }
+    button:active { background: #008f6f; }
+
+    #chat-screen { display: none; flex-direction: column; height: 100%; }
+    .header { background: #202c33; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a3942; }
+    .header h3 { font-size: 18px; color: #e9edef; }
+    .exit-btn { width: auto; padding: 6px 12px; background: #ef4444; color: white; font-size: 13px; }
+    
+    #messages-box { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #0b141a; }
+    .msg { max-width: 80%; padding: 10px 14px; border-radius: 8px; font-size: 15px; word-wrap: break-word; }
+    .msg.other { background: #202c33; align-self: flex-start; }
+    .msg.mine { background: #005c4b; align-self: flex-end; }
+    .msg-user { font-size: 11px; color: #00a884; font-weight: bold; margin-bottom: 4px; }
+    .msg.mine .msg-user { color: #8696a0; }
+
+    .input-area { background: #202c33; padding: 10px; display: flex; gap: 8px; }
+    .input-area input { margin-bottom: 0; flex: 1; padding: 12px; }
+    .input-area button { width: auto; padding: 0 20px; }
+  </style>
 </head>
 <body>
 
+<div class="box">
+  <div id="login-screen">
+    <h1>Room2026 🚀</h1>
+    <p>अपना नाम और रूम नंबर डालकर चैट शुरू करें</p>
+    <input type="text" id="username-input" placeholder="आपका नाम (जैसे: Deepak)">
+    <input type="text" id="room-input" placeholder="रूम नंबर (जैसे: 102)">
+    <button onclick="startChat()">चैट शुरू करें 🚀</button>
+  </div>
+
+  <div id="chat-screen">
     <div class="header">
-        <h1>Room2026 Chat</h1>
-        <p>Global Private Chat Rooms</p>
+      <div>
+        <h3 id="room-title">Room #102</h3>
+        <small id="user-badge" style="color:#00a884;"></small>
+      </div>
+      <button class="exit-btn" onclick="location.reload()">बाहर निकलें</button>
     </div>
-
-    <div id="join-screen">
-        <div class="card">
-            <h2>चैट रूम में जुड़ें</h2>
-            <input type="text" id="username" placeholder="अपना नाम लिखें">
-            <input type="text" id="room-code" placeholder="रूम नंबर डालें" value="101">
-            <button id="join-btn">चैट शुरू करें 🚀</button>
-        </div>
+    <div id="messages-box"></div>
+    <div class="input-area">
+      <input type="text" id="msg-input" placeholder="मैसेज लिखें..." onkeypress="if(event.key==='Enter') sendMessage()">
+      <button onclick="sendMessage()">भेजें</button>
     </div>
+  </div>
+</div>
 
-    <div id="chat-screen">
-        <div class="room-bar">
-            <span id="room-title">Room: 101</span>
-            <button class="leave-btn" id="leave-btn">बाहर निकलें</button>
-        </div>
-        <div id="messages"></div>
-        <div class="input-area">
-            <input type="text" id="msg-input" placeholder="मैसेज लिखें...">
-            <button id="send-btn">भेजें</button>
-        </div>
-    </div>
+<script>
+  const SUPABASE_URL = 'https://supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_WiIbyY-HdqA7Hj_-Dx9utQ_8rFrjx2m';
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    <div class="ad-space">📢 Advertisement Space</div>
+  let currentUser = '';
+  let currentRoom = '';
 
-    <script type="module">
-        import { initializeApp } from "https://gstatic.com";
-        import { getDatabase, ref, push, onChildAdded } from "https://gstatic.com";
+  function startChat() {
+    const rawName = document.getElementById('username-input').value.trim();
+    const room = document.getElementById('room-input').value.trim();
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyA5_lPJ150SfdxTHn_tfc_FWMuv5lyf0qY",
-            authDomain: "mychat-b77e2.firebaseapp.com",
-            databaseURL: "https://mychat-b77e2-default-rtdb.firebaseio.com",
-            projectId: "mychat-b77e2",
-            storageBucket: "mychat-b77e2.firebasestorage.app",
-            messagingSenderId: "727787171183",
-            appId: "1:727787171183:web:35f0d03af36e6609cdcc9a",
-            measurementId: "G-VK9KTC5NJQ"
-        };
+    if (!rawName || !room) {
+      alert('कृपया अपना नाम और रूम नंबर दोनों भरें!');
+      return;
+    }
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+    currentUser = rawName;
+    currentRoom = room;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('chat-screen').style.display = 'flex';
+    document.getElementById('room-title').innerText = 'Room #' + currentRoom;
+    document.getElementById('user-badge').innerText = 'User: ' + currentUser;
 
-        let currentUser = '';
-        let currentRoom = '';
+    loadMessages();
+    setInterval(loadMessages, 2500);
+  }
 
-        document.getElementById('join-btn').addEventListener('click', function() {
-            const nameInput = document.getElementById('username').value.trim();
-            const roomInput = document.getElementById('room-code').value.trim();
+  async function loadMessages() {
+    const { data, error } = await supabaseClient
+      .from('messages')
+      .select('*')
+      .eq('room_id', currentRoom)
+      .order('created_at', { ascending: true });
 
-            if (!nameInput || !roomInput) {
-                alert('कृपया अपना नाम और रूम नंबर दोनों लिखें!');
-                return;
-            }
+    if (error) return;
 
-            currentUser = nameInput;
-            currentRoom = roomInput;
+    const box = document.getElementById('messages-box');
+    const isAtBottom = box.scrollHeight - box.scrollTop <= box.clientHeight + 100;
+    
+    box.innerHTML = '';
+    data.forEach(item => {
+      const div = document.createElement('div');
+      const isMine = item.username === currentUser;
+      div.className = 'msg ' + (isMine ? 'mine' : 'other');
+      
+      div.innerHTML = `
+        <div class="msg-user">${item.username}</div>
+        <div>${item.message}</div>
+      `;
+      box.appendChild(div);
+    });
 
-            document.getElementById('join-screen').style.display = 'none';
-            document.getElementById('chat-screen').style.display = 'flex';
-            document.getElementById('room-title').innerText = 'Room: ' + currentRoom + ' (' + currentUser + ')';
+    if (isAtBottom) {
+      box.scrollTop = box.scrollHeight;
+    }
+  }
 
-            const roomRef = ref(db, 'rooms/' + currentRoom);
-            onChildAdded(roomRef, (snapshot) => {
-                const msg = snapshot.val();
-                if (msg) {
-                    const msgBox = document.getElementById('messages');
-                    const div = document.createElement('div');
-                    div.className = 'msg ' + (msg.sender === currentUser ? 'me' : 'other');
-                    div.innerHTML = `<span class="sender-name">${msg.sender}</span>${msg.message}`;
-                    msgBox.appendChild(div);
-                    msgBox.scrollTop = msgBox.scrollHeight;
-                }
-            });
-        });
+  async function sendMessage() {
+    const input = document.getElementById('msg-input');
+    const text = input.value.trim();
+    if (!text) return;
 
-        document.getElementById('leave-btn').addEventListener('click', function() {
-            location.reload();
-        });
+    input.value = '';
 
-        function sendMessage() {
-            const input = document.getElementById('msg-input');
-            const text = input.value.trim();
-            if (!text) return;
-            input.value = '';
+    const { error } = await supabaseClient
+      .from('messages')
+      .insert([{ room_id: currentRoom, username: currentUser, message: text }]);
 
-            const roomRef = ref(db, 'rooms/' + currentRoom);
-            push(roomRef, {
-                sender: currentUser,
-                message: text,
-                time: Date.now()
-            }).catch((error) => {
-                alert('Error: ' + error.message);
-            });
-        }
+    if (error) {
+      alert('मैसेज भेजने में दिक्कत आई: ' + error.message);
+    } else {
+      loadMessages();
+    }
+  }
+</script>
 
-        document.getElementById('send-btn').addEventListener('click', sendMessage);
-        document.getElementById('msg-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') sendMessage();
-        });
-    </script>
 </body>
-        </html>
-        
+          </html>
+          
