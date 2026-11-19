@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chat2026 - Live Chat</title>
-  <script src="https://unpkg.com"></script>
   <style>
     body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 15px; }
     .box { max-width: 450px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -32,16 +31,18 @@
 </div>
 
 <script>
-  const SUPABASE_URL = 'https://supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_WiIbyY-HdqA7Hj_-Dx9utQ_8rFrjx2m';
-  
-  let db = null;
-  if (window.supabase) {
-    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  }
+  const API_URL = 'https://supabase.co';
+  const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkcWNla3hkb2V0aGFrcWptYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ5NTA1OTIsImV4cCI6MjExMDUyNjU5Mn0.cg2qbqcfsTNPRfgElVVEz2XgmjUG7wnFVZLMHdoODwk';
+  const HEADERS = {
+    'apikey': API_KEY,
+    'Authorization': 'Bearer ' + API_KEY,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=minimal'
+  };
 
   let currentUser = '';
   let currentRoom = '';
+  let lastCount = -1;
 
   function joinChat() {
     currentUser = document.getElementById('username').value.trim();
@@ -55,45 +56,31 @@
     document.getElementById('chat-screen').style.display = 'block';
     document.getElementById('room-title').innerText = 'Room: ' + currentRoom;
 
-    if (db) {
-      loadMessages();
-      listenLive();
-    } else {
-      alert('कृपया 5 सेकंड बाद पेज को रिफ्रेश (Reload) करें।');
-    }
+    loadMessages();
+    setInterval(loadMessages, 2000);
   }
 
   async function loadMessages() {
-    const { data, error } = await db
-      .from('messages')
-      .select('*')
-      .eq('room_code', currentRoom)
-      .order('created_at', { ascending: true });
+    try {
+      const res = await fetch(`${API_URL}?room_code=eq.${encodeURIComponent(currentRoom)}&select=*`, { headers: HEADERS });
+      const data = await res.json();
+      if (!res.ok) {
+        document.getElementById('chat-box').innerHTML = 'एरर: ' + (data.message || JSON.stringify(data));
+        return;
+      }
 
-    if (error) {
-      alert('डेटाबेस एरर: ' + error.message);
-      return;
+      if (data.length !== lastCount) {
+        lastCount = data.length;
+        const box = document.getElementById('chat-box');
+        box.innerHTML = '';
+        data.forEach(m => {
+          box.innerHTML += `<div class="msg"><div class="sender">${m.sender}</div><div>${m.message}</div></div>`;
+        });
+        box.scrollTop = box.scrollHeight;
+      }
+    } catch (e) {
+      document.getElementById('chat-box').innerHTML = 'नेटवर्क एरर: ' + e.message;
     }
-
-    const box = document.getElementById('chat-box');
-    box.innerHTML = '';
-    if (data) data.forEach(showMessage);
-  }
-
-  function showMessage(m) {
-    const box = document.getElementById('chat-box');
-    box.innerHTML += `<div class="msg"><div class="sender">${m.sender}</div><div>${m.message}</div></div>`;
-    box.scrollTop = box.scrollHeight;
-  }
-
-  function listenLive() {
-    db.channel('public:messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-        if (payload.new.room_code === currentRoom) {
-          showMessage(payload.new);
-        }
-      })
-      .subscribe();
   }
 
   async function sendMessage() {
@@ -102,12 +89,21 @@
     if (!text) return;
     input.value = '';
 
-    const { error } = await db.from('messages').insert([{ room_code: currentRoom, sender: currentUser, message: text }]);
-    if (error) {
-      alert('मैसेज भेजने में एरर: ' + error.message);
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: HEADERS,
+        body: JSON.stringify({ room_code: currentRoom, sender: currentUser, message: text })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert('मैसेज भेजने में एरर: ' + (err.message || JSON.stringify(err)));
+      } else {
+        loadMessages();
+      }
+    } catch (e) {
+      alert('नेटवर्क एरर: ' + e.message);
     }
   }
 </script>
-</body>
-    </html>
-    
+  </body>
