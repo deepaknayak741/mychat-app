@@ -1,1 +1,165 @@
-me puri duniya ke mesej dekh saku
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room2026 - Live Chat</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { background-color: #ece5dd; display: flex; flex-direction: column; height: 100vh; }
+        .header { background-color: #075e54; color: white; padding: 15px; text-align: center; }
+        .header h1 { font-size: 20px; }
+        .header p { font-size: 12px; opacity: 0.8; }
+        #join-screen { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; background: white; }
+        .card { width: 100%; max-width: 350px; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
+        .card h2 { color: #075e54; margin-bottom: 15px; }
+        .card input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
+        .card button { width: 100%; padding: 12px; background-color: #25d366; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        #chat-screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+        .room-bar { background: #128c7e; color: white; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .leave-btn { background: #ff4d4d; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 12px; }
+        #messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 75%; padding: 10px 14px; border-radius: 10px; font-size: 15px; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .msg.other { background-color: white; align-self: flex-start; }
+        .msg.me { background-color: #dcf8c6; align-self: flex-end; }
+        .sender-name { font-size: 11px; font-weight: bold; color: #075e54; margin-bottom: 3px; display: block; }
+        .input-area { display: flex; padding: 10px; background: #f0f0f0; gap: 8px; }
+        .input-area input { flex: 1; padding: 12px; border: none; border-radius: 25px; outline: none; font-size: 15px; }
+        .input-area button { background: #075e54; color: white; border: none; padding: 0 20px; border-radius: 25px; font-weight: bold; }
+        .ad-space { background: #fff3cd; color: #856404; text-align: center; padding: 8px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Room2026 Chat</h1>
+        <p>Global Private Chat Rooms</p>
+    </div>
+
+    <div id="join-screen">
+        <div class="card">
+            <h2>चैट रूम में जुड़ें</h2>
+            <input type="text" id="username" placeholder="अपना नाम लिखें">
+            <input type="text" id="room-code" placeholder="रूम नंबर डालें" value="101">
+            <button id="join-btn">चैट शुरू करें 🚀</button>
+        </div>
+    </div>
+
+    <div id="chat-screen">
+        <div class="room-bar">
+            <span id="room-title">Room: 101</span>
+            <button class="leave-btn" id="leave-btn">बाहर निकलें</button>
+        </div>
+        <div id="messages"></div>
+        <div class="input-area">
+            <input type="text" id="msg-input" placeholder="मैसेज लिखें...">
+            <button id="send-btn">भेजें</button>
+        </div>
+    </div>
+
+    <div class="ad-space">📢 Advertisement Space</div>
+
+    <script>
+        const SUPABASE_URL = 'https://supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_WiIbyY-HdqA7Hj_-Dx9utQ_8rFrjx2m';
+        
+        let currentUser = '';
+        let currentRoom = '';
+        let lastId = 0;
+        let fetchInterval = null;
+
+        document.getElementById('join-btn').addEventListener('click', function() {
+            const nameInput = document.getElementById('username').value.trim();
+            const roomInput = document.getElementById('room-code').value.trim();
+
+            if (!nameInput || !roomInput) {
+                alert('कृपया अपना नाम और रूम नंबर दोनों लिखें!');
+                return;
+            }
+
+            currentUser = nameInput;
+            currentRoom = roomInput;
+
+            document.getElementById('join-screen').style.display = 'none';
+            document.getElementById('chat-screen').style.display = 'flex';
+            document.getElementById('room-title').innerText = 'Room: ' + currentRoom + ' (' + currentUser + ')';
+
+            loadMessages();
+            fetchInterval = setInterval(loadMessages, 2500);
+        });
+
+        document.getElementById('leave-btn').addEventListener('click', function() {
+            clearInterval(fetchInterval);
+            document.getElementById('chat-screen').style.display = 'none';
+            document.getElementById('join-screen').style.display = 'flex';
+            document.getElementById('messages').innerHTML = '';
+            lastId = 0;
+        });
+
+        async function loadMessages() {
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/messages?room_code=eq.${encodeURIComponent(currentRoom)}&order=id.asc`, {
+                    headers: {
+                        'apikey': SUPABASE_KEY
+                    }
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    console.error(data);
+                    return;
+                }
+                const msgBox = document.getElementById('messages');
+                data.forEach(msg => {
+                    if (msg.id > lastId) {
+                        lastId = msg.id;
+                        const div = document.createElement('div');
+                        div.className = 'msg ' + (msg.sender === currentUser ? 'me' : 'other');
+                        div.innerHTML = `<span class="sender-name">${msg.sender}</span>${msg.message}`;
+                        msgBox.appendChild(div);
+                        msgBox.scrollTop = msgBox.scrollHeight;
+                    }
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('msg-input');
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+
+            try {
+                const res = await fetch(`${SUPABASE_URL}/rest/v1/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({
+                        room_code: currentRoom,
+                        sender: currentUser,
+                        message: text
+                    })
+                });
+                if (!res.ok) {
+                    const errData = await res.json();
+                    alert('Error: ' + (errData.message || 'मैसेज नहीं जा सका'));
+                } else {
+                    loadMessages();
+                }
+            } catch (err) {
+                alert('Network Error: ' + err.message);
+            }
+        }
+
+        document.getElementById('send-btn').addEventListener('click', sendMessage);
+        document.getElementById('msg-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+  </html>
+  
